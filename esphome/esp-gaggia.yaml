@@ -1,0 +1,141 @@
+substitutions:
+  name: gaggia_cortex
+  name_upper: Gaggia Cortex
+
+wifi:
+  ssid: !secret wifi-ssid
+  password: !secret wifi-password
+  ap: {}
+
+esphome:
+  name: ${name}
+#  platformio_options:
+#    platform: espressif32
+#    board: dfrobot_firebeetle2_esp32e
+#    board: az-delivery-devkit-v4
+
+esp32:
+  board: esp32dev
+
+logger:
+  level: "DEBUG"
+  logs:
+    max31855: ERROR
+    sensor: WARN
+    component: ERROR
+    climate: WARN
+
+spi:
+  clk_pin: GPIO14
+  miso_pin: GPIO12
+
+sensor:
+  - platform: max31855
+    name: "Boiler"
+    cs_pin: GPIO27
+    update_interval: 0.5s
+    id: temp_boiler_thermocouple
+    filters:
+    - sliding_window_moving_average:
+        window_size: 10
+        send_every:   1
+    - or:
+      - delta: 1
+      - heartbeat: 10s
+  - platform: pid
+    name: "PID Boiler Result"
+    type: HEAT
+    climate_id: pid_boiler
+
+climate:
+  - platform: pid
+    id: pid_boiler
+    name: "PID Boiler Controller"
+    sensor: temp_boiler_thermocouple
+    default_target_temperature: 80°C
+    heat_output: relay_heater
+    control_parameters:
+      kp: 0.03553
+      ki: 0.00094
+      kd: 0.33755
+      output_averaging_samples: 2
+      derivative_averaging_samples: 2
+    deadband_parameters:
+      threshold_high: 0.5°C       # deadband within +/-0.5°C of target_temperature
+      threshold_low: -0.5°C
+    visual:
+      min_temperature:  70
+      max_temperature: 130
+
+
+    
+button:
+  - platform: template
+    name: "PID Boiler Autotune"
+    on_press:
+    # Advanced
+    - climate.pid.autotune:
+        id: pid_boiler
+        noiseband: 0.25
+        positive_output: 5%
+
+web_server:
+  port: 80
+  local: true
+
+switch:
+  - platform: gpio
+    pin: GPIO16
+    name: "Main Relais"
+    id: relay_main
+    on_turn_on:
+      then:
+      - light.turn_on:
+          id: power_led
+          brightness: 30%
+      - lambda: |-
+          auto call = id(pid_boiler).make_call();
+          call.set_mode("HEAT");
+          call.perform();
+    on_turn_off:
+      then:
+      - light.turn_off: power_led
+      - lambda: |-
+          auto call = id(pid_boiler).make_call();
+          call.set_mode("OFF");
+          call.perform();
+      
+# Example usage in a light
+light:
+  - platform: monochromatic
+    output: out_power_led
+    id: power_led
+    name: "Power LED"
+
+output:
+  - platform: ledc
+    pin: GPIO25
+    id: out_power_led
+  - platform: slow_pwm
+    pin: GPIO32
+    id: relay_heater
+    period: 3s
+      
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO26
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+     then:
+      - switch.turn_on: relay_main
+    on_release:
+     then:
+      - switch.turn_off: relay_main
+    name: "Main Switch"
+    id: sw_main_switch
+      
+api:
