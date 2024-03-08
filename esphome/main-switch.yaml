@@ -1,0 +1,20 @@
+# main switch is a switch
+#
+# present in original Gaggia machines
+# and modern US variants
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO26
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+     then:
+      - switch.turn_on: relay_main
+    on_release:
+     then:
+      - switch.turn_off: relay_main
+    name: "Main Switch"
+    id: sw_main_switch

@@ -1,10 +1,7 @@
-substitutions:
-  name: gaggia_cortex
-  name_upper: Gaggia Cortex
 
 wifi:
-  ssid: !secret wifi-ssid
-  password: !secret wifi-password
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
   ap: {}
 
 esphome:
@@ -55,9 +52,9 @@ climate:
     default_target_temperature: 80°C
     heat_output: relay_heater
     control_parameters:
-      kp: 0.03553
-      ki: 0.00094
-      kd: 0.33755
+      kp: 0.03298
+      ki: 0.00118
+      kd: 0.23083
       output_averaging_samples: 2
       derivative_averaging_samples: 2
     deadband_parameters:
@@ -66,8 +63,6 @@ climate:
     visual:
       min_temperature:  70
       max_temperature: 130
-
-
     
 button:
   - platform: template
@@ -77,11 +72,22 @@ button:
     - climate.pid.autotune:
         id: pid_boiler
         noiseband: 0.25
-        positive_output: 5%
+        positive_output: 15%
 
-web_server:
-  port: 80
-  local: true
+light:
+  - platform: monochromatic
+    output: out_power_led
+    id: power_led
+    name: "Power LED"
+
+output:
+  - platform: ledc
+    pin: GPIO25
+    id: out_power_led
+  - platform: slow_pwm
+    pin: GPIO32
+    id: relay_heater
+    period: 3s
 
 switch:
   - platform: gpio
@@ -97,6 +103,7 @@ switch:
           auto call = id(pid_boiler).make_call();
           call.set_mode("HEAT");
           call.perform();
+      - climate.pid.reset_integral_term: pid_boiler
     on_turn_off:
       then:
       - light.turn_off: power_led
@@ -104,38 +111,13 @@ switch:
           auto call = id(pid_boiler).make_call();
           call.set_mode("OFF");
           call.perform();
-      
-# Example usage in a light
-light:
-  - platform: monochromatic
-    output: out_power_led
-    id: power_led
-    name: "Power LED"
-
-output:
-  - platform: ledc
-    pin: GPIO25
-    id: out_power_led
-  - platform: slow_pwm
-    pin: GPIO32
-    id: relay_heater
-    period: 3s
-      
-binary_sensor:
-  - platform: gpio
-    pin:
-      number: GPIO26
-      inverted: true
-      mode:
-        input: true
-        pullup: true
-    on_press:
-     then:
-      - switch.turn_on: relay_main
-    on_release:
-     then:
-      - switch.turn_off: relay_main
-    name: "Main Switch"
-    id: sw_main_switch
-      
+     
 api:
+  password: !secret esphome_api_password
+
+web_server:
+  port: 80
+  local: true
+  auth:
+    username: !secret web_server_username
+    password: !secret web_server_password

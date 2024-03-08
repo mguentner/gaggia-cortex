@@ -1,0 +1,10 @@
+---
+substitutions:
+  name: gaggia_example
+  name_upper: Gaggia Example
+
+<<: !include gaggia-cortex-base.yaml
+
+# use either switch or button depending your machine
+<<: !include main-switch.yaml
+# <<: !include main-button.yaml

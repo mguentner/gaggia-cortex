@@ -1,0 +1,16 @@
+# main switch is a button
+# present in modern Gaggia Classic Coffee
+# EU versions
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO26
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    on_press:
+     then:
+      - switch.toggle: relay_main
+    name: "Main Switch"
+    id: sw_main_switch
